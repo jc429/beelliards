@@ -14,6 +14,9 @@ public class HexMap : MonoBehaviour
 	public int cellCountX = 6, cellCountZ = 6;
 	public int cellCountTotal = 0;
 	
+	/* height of the map walls*/ 
+	public static float wallHeight = 3;
+
 	HexCell[] cells;
 
 	public HexCell cellPrefab;
@@ -149,17 +152,35 @@ public class HexMap : MonoBehaviour
 				TriangulateWedge(d, cell);
 			}
 
+			if(CheckCellValid(cell.GetNeighbor(d))){
+				TriangulateEdge(d, cell);
+			}
+
+			/*** if corner cell, create the long walls of arena ***/
+			// this check only passes for corner cells 
+			if(!CheckCellValid(cell.GetNeighbor(d)) 
+			&& !CheckCellValid(cell.GetNeighbor(d.Next())) 
+			&& !CheckCellValid(cell.GetNeighbor(d.Next2()))){
+				TriangulateOuterWallPanel(d, cell);
+				TriangulateOuterWallPanel(d.Next(), cell);
+				TriangulateOuterWallPanel(d.Next2(), cell);
+
+				TriangulateWallStrip(d, cell);
+			}
+
+			/**** Alt Method - creates honeycomb walls - pretty but makes for bad gameplay
 			HexCell n = cell.GetNeighbor(d);
-			if(n != null && !n.invalid){
+			if(CheckCellValid(n)){
 				TriangulateEdge(d, cell);
 			}
 			else{
 				TriangulateOuterWallPanel(d, cell);
 				HexCell n2 = cell.GetNeighbor(d.Next());
-				if(n2 != null && !n2.invalid){
+				if(CheckCellValid(n2)){
 					TriangulateOuterWallPanelCorner(d, cell, n2);
 				}
 			}
+			*/
 		}
 	}
 
@@ -205,7 +226,49 @@ public class HexMap : MonoBehaviour
 		edgeMesh.AddQuad(e1, e2);
 	}
 
+	void TriangulateWallStrip(HexDirection d, HexCell cell){
+		HexDirection castDir = d.Opposite();
+		HexCell n = cell.GetNeighbor(castDir);
+		if(CheckCellValid(n)){
+			//limit to prevent infinite loops if something goes wrong
+			for(int i = 0; i < 10; i++){
+				HexCell n2 = n.GetNeighbor(castDir);
+				if(CheckCellValid(n2)){
+					n = n2;
+				}
+				else{
+					break;
+				}
+			}
+			//n is final cell 
+			Vector3 offset = new Vector3(0, wallHeight, 0);
 
+			EdgeVertices e1 = new EdgeVertices(
+				cell.transform.localPosition + HexMetrics.GetFirstSolidCorner(castDir),
+				n.transform.localPosition + HexMetrics.GetSecondSolidCorner(d)
+			);
+
+			EdgeVertices e2 = new EdgeVertices(
+				e1.v1 + offset,
+				e1.v2 + offset
+			);
+			edgeMesh.AddQuad(e1, e2);
+			
+			EdgeVertices e3 = new EdgeVertices(
+				offset + cell.transform.localPosition + HexMetrics.GetFirstCorner(castDir),
+				offset + n.transform.localPosition + HexMetrics.GetSecondCorner(d)
+			);
+			edgeMesh.AddQuad(e2, e3);
+
+			EdgeVertices e4 = new EdgeVertices(
+				offset + cell.transform.localPosition + HexMetrics.GetFirstCorner(castDir.Previous()),
+				offset + n.transform.localPosition + HexMetrics.GetSecondCorner(d.Next())
+			);
+			edgeMesh.AddQuad(e3,e4);	
+
+
+		}
+	}
 
 
 
@@ -214,7 +277,7 @@ public class HexMap : MonoBehaviour
 	/* creates the stage boundaries */ 
 	void TriangulateOuterWallPanel(HexDirection direction, HexCell cell){
 		Vector3 center = cell.transform.localPosition;
-		Vector3 offset = new Vector3(0, 4, 0);
+		Vector3 offset = new Vector3(0, wallHeight, 0);
 		EdgeVertices e1 = new EdgeVertices(
 			center + HexMetrics.GetFirstSolidCorner(direction),
 			center + HexMetrics.GetSecondSolidCorner(direction)
@@ -234,7 +297,7 @@ public class HexMap : MonoBehaviour
 
 	/* creates the stage boundaries */ 
 	void TriangulateOuterWallPanelCorner(HexDirection direction, HexCell cell, HexCell neighbor){
-		Vector3 offset = new Vector3(0, 4, 0);
+		Vector3 offset = new Vector3(0, wallHeight, 0);
 		Vector3 endpoint = offset + cell.transform.localPosition + HexMetrics.GetSecondCorner(direction);
 
 		EdgeVertices e1 = new EdgeVertices(
@@ -250,7 +313,9 @@ public class HexMap : MonoBehaviour
 		edgeMesh.AddTriangle(e2.v1, endpoint, e2.v2);
 	}
 
-
+	bool CheckCellValid(HexCell cell){
+		return (cell != null && !cell.invalid);
+	}
 
 	bool CheckIfHole(HexCoordinates c){
 		if(c.X == -1){
