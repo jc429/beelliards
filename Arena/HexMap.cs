@@ -13,9 +13,10 @@ public class HexMap : MonoBehaviour
 	/* size of map in cells */
 	public int cellCountX = 6, cellCountZ = 6;
 	public int cellCountTotal = 0;
-	
+	int radius;
+
 	/* height of the map walls*/ 
-	public static float wallHeight = 3;
+	public static float wallHeight = 2;
 
 	HexCell[] cells;
 
@@ -23,13 +24,18 @@ public class HexMap : MonoBehaviour
 
 	public HexMesh cellMesh;
 	public HexMesh edgeMesh;
+	public HexMesh wallMesh;
 
 	public Transform cellContainer;
+	public GameObject holePrefab;
+
+	public Transform transOffset;
 
 	void Awake()
 	{
 		cellMesh.InitHexMesh();
 		edgeMesh.InitHexMesh();
+		wallMesh.InitHexMesh();
 		CreateMap(4);
 	}
 
@@ -40,7 +46,12 @@ public class HexMap : MonoBehaviour
 	}
 
 
-	public bool CreateMap(int radius){
+	public bool CreateMap(int mapRadius){
+		radius = mapRadius;
+		Vector3 offset = new Vector3(-4f * (radius - 1), -0.5f, -3f * (radius - 1));
+		transOffset.localPosition	= offset;
+
+
 		centerCoords = new HexCoordinates(radius / 2, radius - 1);
 		
 		//just make a larger map and then disable certain cells
@@ -114,6 +125,12 @@ public class HexMap : MonoBehaviour
 				}
 			}
 		}
+
+		if(cell.isHole){
+			GameObject hole = Instantiate(holePrefab);
+			hole.transform.SetParent(cellContainer,false);
+			hole.transform.localPosition = pos;
+		}
 	
 
 	//label cell
@@ -130,6 +147,7 @@ public class HexMap : MonoBehaviour
 	public void TriangulateAll(){
 		cellMesh.ClearAll();
 		edgeMesh.ClearAll();
+		wallMesh.ClearAll();
 
 		foreach(HexCell c in cells){
 			if(!c.invalid){
@@ -139,6 +157,7 @@ public class HexMap : MonoBehaviour
 
 		cellMesh.Apply();
 		edgeMesh.Apply();
+		wallMesh.Apply();
 	}
 
 
@@ -252,19 +271,19 @@ public class HexMap : MonoBehaviour
 				e1.v1 + offset,
 				e1.v2 + offset
 			);
-			edgeMesh.AddQuad(e1, e2);
+			wallMesh.AddQuad(e1, e2);
 			
 			EdgeVertices e3 = new EdgeVertices(
 				offset + cell.transform.localPosition + HexMetrics.GetFirstCorner(castDir),
 				offset + n.transform.localPosition + HexMetrics.GetSecondCorner(d)
 			);
-			edgeMesh.AddQuad(e2, e3);
+			wallMesh.AddQuad(e2, e3);
 
 			EdgeVertices e4 = new EdgeVertices(
 				offset + cell.transform.localPosition + HexMetrics.GetFirstCorner(castDir.Previous()),
 				offset + n.transform.localPosition + HexMetrics.GetSecondCorner(d.Next())
 			);
-			edgeMesh.AddQuad(e3,e4);	
+			wallMesh.AddQuad(e3,e4);	
 
 
 		}
@@ -291,8 +310,8 @@ public class HexMap : MonoBehaviour
 			center + offset + HexMetrics.GetSecondCorner(direction)
 		);
 
-		edgeMesh.AddQuad(e1, e2);
-		edgeMesh.AddQuad(e2, e3);
+		wallMesh.AddQuad(e1, e2);
+		wallMesh.AddQuad(e2, e3);
 	}
 
 	/* creates the stage boundaries */ 
@@ -318,18 +337,19 @@ public class HexMap : MonoBehaviour
 	}
 
 	bool CheckIfHole(HexCoordinates c){
+		int r1 = radius - 1;
 		if(c.X == -1){
-			if(c.Z == 3 || c.Z == 6){
+			if(c.Z == r1 || c.Z == 2*r1){
 				return true;
 			}
 		}
-		if(c.X == 2){
-			if(c.Z == 0 || c.Z == 6){
+		if(c.X == r1 - 1){
+			if(c.Z == 0 || c.Z == 2*r1){
 				return true;
 			}
 		}
-		if(c.X == 5){
-			if(c.Z == 0 || c.Z == 3){
+		if(c.X == (2 * r1) - 1){
+			if(c.Z == 0 || c.Z == r1){
 				return true;
 			}
 		}

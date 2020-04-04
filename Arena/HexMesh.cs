@@ -12,7 +12,7 @@ public class HexMesh : MonoBehaviour
 
 	MeshCollider meshCollider;
 	public bool useCollider;
-
+	public PhysicMaterial physicsMaterial;
 	
 	// Start is called before the first frame update
 	void Awake()
@@ -29,6 +29,7 @@ public class HexMesh : MonoBehaviour
 		hexMesh = GetComponent<MeshFilter>().mesh = new Mesh();
 		if (useCollider) {
 			meshCollider = gameObject.AddComponent<MeshCollider>();
+			meshCollider.material = physicsMaterial;
 		}
 		hexMesh.name = "HexMesh";
 	}
